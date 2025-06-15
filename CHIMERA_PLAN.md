@@ -25,6 +25,8 @@ _Last Updated: [AUTO_TIMESTAMP]_
 
 ## 💬 エージェント間通信ログ
 ```
+[16:52] PM → Coder: タスク割当: サンプルタスクテスト (ID: test-001)
+[16:44] PM → Coder: タスク割当: テスト実装タスク (ID: test-task-001)
 [AUTO_TIME] System: CHIMERA_PLAN.md initialized
 ```
 

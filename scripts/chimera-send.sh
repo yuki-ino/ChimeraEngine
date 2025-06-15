@@ -307,14 +307,35 @@ main() {
             return $?
             ;;
         "task-assign")
-            # 構造化タスク割り当て: chimera send task-assign <宛先> <担当> <ID> <内容> [優先度] [依存] [期限]
-            if [[ $# -lt 5 ]]; then
-                log_error "使用法: chimera send task-assign <宛先> <担当> <タスクID> <内容> [優先度] [依存] [期限]"
+            # PMからCoderへのタスク割り当て: chimera send task-assign <宛先> <タスクID> <内容>
+            if [[ $# -lt 4 ]]; then
+                log_error "使用法: chimera send task-assign <宛先> <タスクID> <内容>"
                 return 1
             fi
             shift  # 'task-assign'を除去
-            send_task_assignment "$1" "$2" "$3" "$4" "${5:-medium}" "${6:-none}" "${7:-}"
-            return $?
+            local target_agent="$1"
+            local task_id="$2"
+            local task_content="$3"
+            
+            # PMからCoderへの実装指示（CLAUDE.mdの要件に従い）
+            if [[ "$target_agent" == "coder" ]] || [[ "$target_agent" == "Coder" ]]; then
+                local instruction_msg="# 🚀 PMからタスク割当: ${task_content}を開始してください (ID: ${task_id})"
+                log_info "🚀 PMからCoder（pane 1）にタスク指示を送信中..."
+                
+                # tmux send-keysでCoderペイン（pane 1）に直接指示
+                if tmux send-keys -t chimera-workspace:0.1 "$instruction_msg" C-m; then
+                    log_success "タスク指示送信完了: $task_id"
+                    add_communication_log "PM" "Coder" "タスク割当: $task_content (ID: $task_id)"
+                    return 0
+                else
+                    log_error "tmux send-keys でのメッセージ送信に失敗しました"
+                    return 1
+                fi
+            else
+                # 他のエージェントの場合は従来通り
+                send_agent_message "$target_agent" "# タスク割当 (ID: $task_id): $task_content"
+                return $?
+            fi
             ;;
         "task-complete")
             # 構造化タスク完了: chimera send task-complete <宛先> <受信> <ID> <概要> [成果物] [次ステップ]

@@ -6,6 +6,7 @@
 AGENT_IDENTITY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${AGENT_IDENTITY_DIR}/common.sh"
 source "${AGENT_IDENTITY_DIR}/plan-manager.sh"
+source "${AGENT_IDENTITY_DIR}/messaging.sh"
 
 # エージェント身元情報（macOS bash 3.x compatible）
 # declare -A AGENT_IDENTITY_INFO  # Disabled for macOS compatibility
@@ -212,6 +213,7 @@ send_role_recognition_to_agent() {
     
     # 身元確認ログ
     local identity_log="${CHIMERA_WORKSPACE_DIR}/agent_identity/session_state/${agent}_recognition.log"
+    mkdir -p "$(dirname "$identity_log")"
     echo "$(date -Iseconds) | ROLE_RECOGNITION | $session_context | Message sent" >> "$identity_log"
     
     log_success "エージェント $agent 役割認識メッセージ送信完了"

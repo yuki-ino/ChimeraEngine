@@ -3,6 +3,27 @@
 # 🏥 Agent Health Monitoring & Recovery System for Chimera Engine
 # エージェント自己診断・回復システム - 参考記事の「agents losing context」問題を完全自動化で解決
 
+# macOS bash 3.x compatibility check - skip all functionality if incompatible
+if [[ "${BASH_VERSION%%.*}" -lt 4 ]]; then
+    # Provide stub functions for compatibility
+    init_health_monitor() { echo "Health monitor init skipped (macOS bash 3.x)"; }
+    start_health_daemon() { echo "Health daemon start skipped (macOS bash 3.x)"; }
+    stop_health_daemon() { echo "Health daemon stop skipped (macOS bash 3.x)"; }
+    check_agent_health() { echo "Health check skipped for ${1:-all} (macOS bash 3.x)"; }
+    generate_health_report() { echo "Health report skipped (macOS bash 3.x)"; }
+    
+    # Handle command line arguments
+    case "${1:-}" in
+        "init") init_health_monitor ;;
+        "start-daemon") start_health_daemon ;;
+        "stop-daemon") stop_health_daemon ;;
+        "check") check_agent_health "${2:-all}" ;;
+        "report") generate_health_report ;;
+        *) echo "Health monitor commands: init, start-daemon, stop-daemon, check, report" ;;
+    esac
+    exit 0
+fi
+
 HEALTH_MONITOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${HEALTH_MONITOR_DIR}/common.sh"
 source "${HEALTH_MONITOR_DIR}/plan-manager.sh"
