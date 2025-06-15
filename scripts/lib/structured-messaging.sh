@@ -7,19 +7,22 @@ STRUCTURED_MSG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${STRUCTURED_MSG_DIR}/common.sh"
 source "${STRUCTURED_MSG_DIR}/plan-manager.sh"
 
-# メッセージタイプ
-declare -A MESSAGE_TYPES=(
-    ["TASK_ASSIGN"]="タスク割り当て"
-    ["TASK_UPDATE"]="タスク更新"
-    ["TASK_COMPLETE"]="タスク完了"
-    ["REQUEST_INFO"]="情報要求"
-    ["PROVIDE_INFO"]="情報提供"
-    ["ERROR_REPORT"]="エラー報告"
-    ["STATUS_UPDATE"]="ステータス更新"
-    ["DEPENDENCY_READY"]="依存関係解決"
-    ["BLOCK_REPORT"]="ブロッカー報告"
-    ["SYNC_REQUEST"]="同期要求"
-)
+# メッセージタイプ（macOS bash 3.x compatibility - disabled associative arrays）
+# declare -A MESSAGE_TYPES=(      # Disabled for macOS compatibility
+#     ["TASK_ASSIGN"]="タスク割り当て"
+#     ["TASK_UPDATE"]="タスク更新"
+#     ["TASK_COMPLETE"]="タスク完了"
+#     ["REQUEST_INFO"]="情報要求"
+#     ["PROVIDE_INFO"]="情報提供"
+#     ["ERROR_REPORT"]="エラー報告"
+#     ["STATUS_UPDATE"]="ステータス更新"
+#     ["DEPENDENCY_READY"]="依存関係解決"
+#     ["BLOCK_REPORT"]="ブロッカー報告"
+#     ["SYNC_REQUEST"]="同期要求"
+# )
+
+# Note: Structured messaging requires bash 4.x+ for associative arrays
+# This feature is disabled on macOS bash 3.x systems
 
 # 構造化メッセージ送信
 send_structured_message() {

@@ -174,6 +174,9 @@ Chimera Engine セットアップスクリプト
 EOF
             exit 0
             ;;
+        start|setup|"")
+            # Default behavior - setup and start
+            ;;
         *)
             log_error "不明なオプション: $1"
             echo "使用方法: $0 --help"

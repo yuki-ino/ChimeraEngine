@@ -156,12 +156,17 @@ chimera help              # ヘルプ表示
 
 ## 📚 ドキュメント
 
-- 📖 [実プロジェクト導入ガイド](real-project-guide.md)
-- 🧪 [QA役割分化の詳細](qa-roles-demo.md)  
-- 🎯 [PM企画検討モード](pm-planning-demo.md)
-- 🔧 [テストフレームワーク対応](test-framework-examples.md)
-- ⚙️ [セッション構成詳細](session-structure-final.md)
-- 📊 [フィードバック収集](feedback-collector.sh)
+### 利用者向け
+- 📖 **[USER_GUIDE.md](USER_GUIDE.md)** - コマンド使用法・操作方法
+- 📖 [実プロジェクト導入ガイド](docs/real-project-guide.md)
+- 🧪 [QA役割分化の詳細](docs/qa-roles-demo.md)  
+- 🎯 [PM企画検討モード](docs/pm-planning-demo.md)
+
+### 開発者向け
+- 🔧 **[CLAUDE.md](CLAUDE.md)** - 実装ガイド・技術制約
+- 🔧 [テストフレームワーク対応](docs/test-framework-examples.md)
+- ⚙️ [セッション構成詳細](docs/session-structure-final.md)
+- 📊 [フィードバック収集](scripts/feedback-collector.sh)
 
 ## 💡 実プロジェクト事例
 

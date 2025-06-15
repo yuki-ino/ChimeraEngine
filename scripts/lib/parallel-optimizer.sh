@@ -7,17 +7,27 @@ PARALLEL_OPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${PARALLEL_OPT_DIR}/common.sh"
 source "${PARALLEL_OPT_DIR}/plan-manager.sh"
 
-# グローバル変数
-declare -A TASK_DEPENDENCIES
-declare -A TASK_STATUS
-declare -A TASK_AGENTS
-declare -A AGENT_WORKLOAD
-declare -A RESOURCE_LOCKS
-declare -A PARALLEL_GROUPS
+# グローバル変数（macOS bash 3.x compatibility - disabled associative arrays）
+# declare -A TASK_DEPENDENCIES    # Disabled for macOS compatibility
+# declare -A TASK_STATUS          # Disabled for macOS compatibility
+# declare -A TASK_AGENTS          # Disabled for macOS compatibility
+# declare -A AGENT_WORKLOAD       # Disabled for macOS compatibility
+# declare -A RESOURCE_LOCKS       # Disabled for macOS compatibility
+# declare -A PARALLEL_GROUPS      # Disabled for macOS compatibility
+
+# Note: Parallel optimization requires bash 4.x+ for associative arrays
+# This feature is disabled on macOS bash 3.x systems
 
 # 並列最適化システム初期化
 init_parallel_optimizer() {
     log_info "並列タスク実行最適化システム初期化中..."
+    
+    # Check bash version compatibility
+    if [[ "${BASH_VERSION%%.*}" -lt 4 ]]; then
+        log_warn "並列最適化機能は bash 4.x+ が必要です (現在: bash ${BASH_VERSION})"
+        log_warn "macOS bash 3.x では並列最適化は無効化されます"
+        return 0
+    fi
     
     local optimizer_dir="${CHIMERA_WORKSPACE_DIR}/parallel_optimizer"
     safe_mkdir "$optimizer_dir"

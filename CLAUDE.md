@@ -1,436 +1,270 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides technical guidance to Claude Code when working with the Chimera Engine codebase.
 
-## Project Overview
+## Project Context
 
-Chimera Engine is a multi-agent development system that orchestrates PM (Product Manager), Developer, and QA team communication using tmux sessions and Claude Code. The system enables structured development workflows with role-based agent communication.
+### Purpose
+Chimera Engine is a **multi-agent development orchestration system** that enables autonomous collaboration between PM, Developer, and QA roles using tmux sessions and Claude Code. This is NOT a user application - it's a development workflow automation tool.
 
-**Current Version**: 0.0.1 - **Legacy modes have been removed**, system now uses unified 5-agent architecture only.
+### Core Problem Being Solved
+Traditional development workflows suffer from:
+- PM role confusion (doing implementation vs. management)
+- Manual QA handoffs and context loss
+- Agent communication fragmentation
+- Cross-platform compatibility issues (especially macOS bash limitations)
 
-## Core Architecture
+### Technical Philosophy
+- **Role-based autonomy**: Each agent operates independently within defined constraints
+- **Fail-safe design**: Comprehensive error handling with graceful degradation
+- **Cross-platform compatibility**: Designed for macOS bash 3.x+ and Linux environments
 
-### Agent Structure (Unified Workspace)
-Single tmux session `chimera-workspace` with 5 specialized panes:
-- **Pane 0 - PM**: Product management, planning, and requirements (top 1/3)
-- **Pane 1 - Coder**: Full-stack development (middle 1/3)
-- **Pane 2 - QA-Functional**: Feature testing specialist (bottom left)
-- **Pane 3 - QA-Lead**: Quality management and release decisions (bottom center)
-- **Pane 4 - Monitor**: Status monitoring and reporting (bottom right)
+## Architecture Decisions
 
-### Communication Flow
+### 1. Unified 5-Pane tmux Workspace
+**Decision**: Single session `chimera-workspace` with specialized panes
+**Rationale**: 
+- Reduces session management complexity (vs. 3-session legacy design)
+- Enables real-time monitoring across all agents
+- Simplifies inter-agent communication routing
+
 ```
-PM Planning → Development Instructions → Implementation → Testing → Quality Review → Release
-    ↑                                                                                    ↓
-    └─────────────────── Feedback Loop ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←┘
+Pane Layout:
+├── 0: PM (Product Management)      [1/3 top]
+├── 1: Coder (Implementation)       [1/3 middle] 
+├── 2: QA-Functional (Testing)      [1/3 bottom-left]
+├── 3: QA-Lead (Quality Mgmt)       [1/3 bottom-center]
+└── 4: Monitor (Status/Reports)     [1/3 bottom-right]
 ```
 
-## Essential Commands
+### 2. Function-Based Configuration System
+**Decision**: Use bash functions instead of associative arrays
+**Rationale**: macOS ships with bash 3.x which lacks associative array support
+**Implementation**: `scripts/lib/config.sh` - `get_agent_pane()`, `get_agent_info()`
 
-### Memory System (Dynamic Role Definition)
+### 3. Modular Library Architecture
+**Decision**: Split functionality into focused libraries under `scripts/lib/`
+**Rationale**: 
+- Enables isolated testing of individual components
+- Reduces code duplication across scripts
+- Facilitates maintenance and debugging
+
+## Critical Implementation Constraints
+
+### 1. PM Role Enforcement
+**CRITICAL**: PM must NEVER perform implementation tasks
+- **Forbidden tools**: Write, Edit, MultiEdit, Task, Grep, Glob, List
+- **Allowed tools**: Bash (tmux send-keys only), Read (CHIMERA_PLAN.md only)
+- **Enforcement location**: `instructions/pm-improved.md`
+
+### 2. Agent Auto-Communication Flow
+**CRITICAL**: Agents must automatically notify downstream roles
+```
+Coder completes → auto-notify QA-Functional → auto-notify QA-Lead → auto-notify PM
+```
+**Implementation**: `chimera send` commands in completion handlers
+
+### 3. macOS Compatibility Requirements (CRITICAL)
+**ABSOLUTE REQUIREMENT**: All scripts MUST work with bash 3.x (macOS default)
+
+#### ❌ FORBIDDEN - Never Use These Features:
 ```bash
-# Initialize memory system (auto-runs with chimera init)
-chimera memory init
+# NEVER use associative arrays (bash 4.x+ only)
+declare -A ARRAY_NAME           # ❌ FORBIDDEN
+ARRAY_NAME["key"]="value"       # ❌ FORBIDDEN
 
-# Configure project context interactively
-chimera memory configure
+# NEVER use declare -g (bash 4.x+ only)  
+declare -g GLOBAL_VAR           # ❌ FORBIDDEN
 
-# Update agent roles dynamically
-chimera memory update-role pm PROJECT_LANGUAGE=Japanese
-chimera memory update-role coder PRIMARY_LANGUAGE=Python FRAMEWORKS="Django, FastAPI"
-chimera memory update-role qa-lead RELEASE_STANDARDS="Zero Critical Bugs"
-
-# View current configuration
-chimera memory show
-
-# Export/Import configurations
-chimera memory export project-config.tar.gz
-chimera memory import project-config.tar.gz
+# NEVER use timeout command (not available on macOS)
+timeout 30 command              # ❌ FORBIDDEN
 ```
 
-### Development and Testing
+#### ✅ REQUIRED - Use These Alternatives:
 ```bash
-# Run all tests with comprehensive output
-./tests/run_all_tests.sh -v
+# Use functions instead of associative arrays
+get_value() {
+    case "$1" in
+        "key1") echo "value1" ;;
+        "key2") echo "value2" ;;
+        *) echo "" ;;
+    esac
+}
 
-# Run tests with JSON output for CI/CD
-./tests/run_all_tests.sh -j -o ./test_results
+# Use regular declare without -g
+declare VARIABLE_NAME="value"
 
-# Run specific test suite
-./tests/test_common_functions.sh
-./tests/test_messaging.sh
-
-# Run tests in parallel (experimental)
-./tests/run_all_tests.sh -p
+# Use alternative timeout implementations
+# (See common.sh for portable implementations)
 ```
 
-### System Setup
+#### 🚨 MANDATORY Compatibility Checks:
+Every new script MUST include this check:
 ```bash
-# One-liner installation
-curl -sSL https://raw.githubusercontent.com/yuki-ino/ChimeraEngine/main/scripts/install.sh | bash
-
-# Initialize in existing project
-chimera init
-
-# Start multi-agent environment  
-chimera start
-
-# Alternative: Manual setup (for development)
-./scripts/setup-chimera.sh
-
-# Repair existing sessions
-./scripts/setup-chimera.sh --repair
-
-# Enable debug mode
-./scripts/setup-chimera.sh --debug
+# MANDATORY: Check bash version compatibility
+if [[ "${BASH_VERSION%%.*}" -lt 4 ]]; then
+    log_warn "Feature requires bash 4.x+ (current: bash ${BASH_VERSION})"
+    log_warn "macOS bash 3.x: Feature disabled for compatibility"
+    return 0  # Graceful degradation, do not fail
+fi
 ```
 
-### Plan Management and Structured Messaging
-```bash
-# Task Management
-chimera send add-task <ID> <agent> <description> [priority] [dependencies]
-chimera send update-task <ID> <status> [agent] [progress]
-chimera send sync-plan
-
-# Structured Messaging
-chimera send task-assign <from> <to> <task_id> <description>
-chimera send task-complete <from> <to> <task_id> <summary>
-chimera send error-report <from> <to> <error_description> [task_id]
-chimera send status-update <from> <to> <task_id> <progress%> <current_work>
-
-# Plan Monitoring
-./scripts/plan-watcher.sh start <agent>     # Start background monitoring
-./scripts/plan-watcher.sh status           # Check monitoring status
-./scripts/plan-watcher.sh stop-all         # Stop all monitoring
-
-# Message Analytics
-chimera send --msg-stats                    # Show messaging statistics
-chimera send --msg-search <keyword>         # Search message history
-
-# Parallel Task Optimization (NEW - 4x+ faster than reference article)
-chimera send parallel-analyze               # Analyze parallel execution possibilities
-chimera send parallel-execute               # Execute optimized parallel plan
-chimera send parallel-report                # Generate optimization report
-
-# Agent Health Monitoring (NEW - auto-fix "agents losing context")
-chimera send health-check                   # Comprehensive health check
-chimera send health-start                   # Start continuous monitoring daemon
-chimera send health-stop                    # Stop monitoring daemon
-chimera send health-report                  # Generate detailed health report
-
-# Agent Identity & Role Recognition (NEW - auto-role assignment)
-chimera send role-recognition <agent>       # Send role recognition to specific agent
-chimera send role-recognition-all           # Send role recognition to all agents  
-chimera send project-init <name> <desc>     # Initialize project with role assignments
-chimera send identity-status                # Check agent identity confirmation status
-chimera send emergency-resync               # Emergency agent re-identification
-```
-
-### Agent Communication
-```bash
-# Send messages between agents
-chimera send [agent] "[message]"
-
-# List available agents
-chimera send --list
-
-# Available agents: pm, coder, qa-functional, qa-lead, monitor
-# Examples:
-chimera send coder "Implement user authentication"
-chimera send qa-functional "Test the login functionality"
-chimera send qa-lead "Review code quality and approve release"
-```
-
-### PM Workflow Management (Dev-QA Synchronization)
-```bash
-# PM-specific commands to manage dev-qa workflow
-chimera send check-dev           # Check developer work status
-chimera send status-all          # Check all agents status
-chimera send wait-qa "Task Name" # Wait for dev completion before QA
-
-# Manual workflow controller usage
-./scripts/pm-workflow-controller.sh check-dev    # Analyze dev completion
-./scripts/pm-workflow-controller.sh status-all   # Full system status
-./scripts/pm-workflow-controller.sh wait-for-qa "Task Name" # Auto QA after dev
-```
-
-### Project Analysis (Auto-runs during init)
-```bash
-# Analyze project test frameworks and generate custom instructions
-./scripts/project-analyzer.sh .
-./scripts/test-manual-generator.sh .
-```
-
-### Session Management
-```bash
-# Attach to unified workspace
-tmux attach-session -t chimera-workspace
-
-# Access specific panes
-# Mouse click     (Select pane - enabled by default)
-# Ctrl+b, ↑↓←→  (Navigate between panes)
-# Ctrl+b, z      (Maximize/restore pane)
-# Ctrl+b, d      (Detach session)
-
-# Manual Claude Code startup (auto-handled by setup)
-for i in {0..4}; do 
-  tmux send-keys -t "chimera-workspace:0.$i" "claude --dangerously-skip-permissions" C-m
-done
-```
-
-## Key Components
-
-### 1. Agent Instructions
-**Static Instructions (`instructions/*.md`):**
-- `pm-improved.md`: PM with planning mode support
-- `coder.md`: Full-stack developer instructions  
-- `qa-functional.md`: Feature testing specialist
-- `qa-lead.md`: Quality management and release decisions
-
-**Dynamic Role Definitions (`.chimera/memory/agent-roles/*-role.md`):**
-- Automatically created from static instructions during `chimera init`
-- Customizable per project with environment variables
-- Loaded via Claude Code's `--memory-dir` feature
-- Allows project-specific adaptations without modifying core instructions
-
-### 2. Core Scripts (`scripts/`)
-- `setup-chimera.sh`: Creates unified 5-pane tmux workspace with session management
-- `chimera-send.sh`: Agent messaging system with broadcast and status features
-- `pm-workflow-controller.sh`: PM workflow management and dev-qa synchronization
-- `project-analyzer.sh`: Auto-detects test frameworks (Jest, Cypress, pytest, etc.)
-- `test-manual-generator.sh`: Generates project-specific test instructions
-- `pm-mode-controller.sh`: PM planning/development mode management
-- `memory-manager.sh`: Dynamic role definition and project context management
-
-### 3. Core Libraries (`scripts/lib/`)
-**Modular architecture with shared components:**
-
-- `common.sh`: Unified logging, utility functions, version comparison, session management
-- `config.sh`: Centralized configuration with agent mappings and system settings  
-- `messaging.sh`: Inter-agent communication, broadcast messaging, status analysis
-- `session-manager.sh`: tmux session lifecycle, workspace creation, Claude Code integration
-- `error-handler.sh`: Comprehensive error handling, recovery mechanisms, cleanup procedures
-- `config-loader.sh`: YAML configuration loading and management
-
-**Key Functions:**
-```bash
-# From common.sh
-log_info "message"              # Colored logging
-version_compare "1.0.0" "1.0.1" # Returns 0/1/2 for equal/newer/older
-list_agents                     # Returns: pm, coder, qa-functional, qa-lead, monitor
-safe_mkdir "path"              # Creates directories safely
-escape_string "text[*]"        # Escapes shell special characters
-
-# From messaging.sh  
-send_agent_message "coder" "msg"    # Send message to specific agent
-broadcast_message "msg" "exclude"   # Send to all agents except excluded
-get_agent_output "pm" 20           # Get last 20 lines from agent
-analyze_agent_status "coder"       # Returns: completed/error/waiting/working/unknown
-```
-
-### 4. Testing Framework (`tests/`)
-**Custom bash testing framework with macOS compatibility:**
-
-- `tests/lib/test-framework.sh`: Complete testing framework with assertions, mocking, benchmarking
-- `tests/run_all_tests.sh`: Comprehensive test runner with parallel execution, JSON output
-- Individual test suites: `test_common_functions.sh`, `test_messaging.sh`
-
-**Test Framework Features:**
-- Color-coded output with progress indicators
-- Multiple assertion types (equals, file_exists, command_success, output_contains)
-- Mock environment setup for isolated testing
-- Automatic cleanup and error handling
-- JSON output for CI/CD integration
-- Parallel test execution support
-
-### 5. Agent Communication System
-Messages route through unified workspace panes:
-- PM → `chimera-workspace:0.0`
-- Coder → `chimera-workspace:0.1`  
-- QA Functional → `chimera-workspace:0.2`
-- QA Lead → `chimera-workspace:0.3`
-- Monitor → `chimera-workspace:0.4`
-
-## PM Planning Mode
-
-The PM operates in two phases:
-1. **Planning Mode**: Private planning without team notifications
-2. **Development Mode**: Active team coordination
-
-Trigger development start:
-```bash
-chimera send pm-self "START_DEVELOPMENT"
-```
-
-## Project Analysis Features
-
-Automatically detects and configures:
-- **JavaScript/TypeScript**: Jest, Vitest, Cypress, Playwright, Testing Library
-- **Python**: pytest, unittest
-- **Other**: Rust (cargo test), Go (go test), Java (Maven/Gradle)
-
-Generated files:
-- `.chimera/project-analysis.json`: Analysis results
-- `instructions/tester-custom.md`: Project-specific test instructions
-
-## Configuration and Error Handling
-
-### Configuration Management
-The system uses function-based configuration (macOS bash 3.x compatible):
-```bash
-# Agent configuration
-get_agent_pane "pm"        # Returns: chimera-workspace:0.0
-get_agent_info "pm" "role" # Returns: プロダクトマネージャー
-
-# Environment settings
-CHIMERA_VERSION="0.0.1"
-CHIMERA_SESSION_NAME="chimera-workspace"
-CHIMERA_WORKSPACE_DIR="${TMPDIR}/chimera-workspace-$$"
-```
-
-### Error Handling System
-Comprehensive error handling with recovery mechanisms:
-```bash
-# Initialize error handling with strict mode
-init_error_handling 1 0    # (strict=1, debug=0)
-
-# Error recovery for common issues
-# - tmux server connectivity problems
-# - Missing directories and permissions  
-# - Session management failures
-```
-
-**Features:**
-- Automatic error ID generation with detailed logging
-- Context-aware recovery attempts (tmux, directory, network)
-- Cleanup procedures for graceful failure handling
-- Error statistics and reporting
-
-### Status and Logging
-
-The system maintains isolated workspace (non-intrusive to project):
-- `${TMPDIR}/chimera-workspace-$$/status/`: Status tracking files
-- `${TMPDIR}/chimera-workspace-$$/logs/`: Communication and activity logs  
-- `${TMPDIR}/chimera-workspace-$$/logs/errors/`: Detailed error logs with recovery info
-- Real-time status monitoring through the monitor agent
-- **Project folder remains clean** - no logs/status pollution
-
-## 🚀 Advanced Features (Beyond Reference Article)
-
-### Parallel Task Optimization System
-The system automatically analyzes task dependencies and executes independent tasks in parallel:
-- **Dependency Graph Analysis**: Automatically builds task dependency graphs from CHIMERA_PLAN.md
-- **Resource Conflict Detection**: Prevents agents from working on conflicting resources
-- **Dynamic Load Balancing**: Distributes tasks based on agent workload
-- **4x+ Speed Improvement**: Exceeds the reference article's "4x faster progress" through advanced optimization
-
-### Agent Health Monitoring & Recovery
-Fully automated solution to the reference article's "agents losing context" problem:
-- **24/7 Continuous Monitoring**: Real-time agent health tracking
-- **Automatic Context Resync**: Auto-detects and fixes context loss without manual intervention
-- **Predictive Maintenance**: Identifies performance degradation before it becomes critical
-- **Emergency Recovery**: Automatic agent restart and team resynchronization
-- **Performance Optimization**: AI-driven suggestions for improving agent efficiency
-
-### Structured Messaging System
-Advanced inter-agent communication with message history and analytics:
-- **8 Message Types**: TASK_ASSIGN, TASK_COMPLETE, ERROR_REPORT, STATUS_UPDATE, etc.
-- **Message History Tracking**: Full audit trail with JSON storage
-- **Search & Analytics**: Query message history for debugging and optimization
-- **Auto-logging to CHIMERA_PLAN.md**: Seamless integration with unified planning
-
-## Development Workflow
-
-### 🤖 Autonomous Agent Collaboration
-**PM sends initial instruction only, agents work autonomously:**
-1. **PM**: Initial requirements to coder → enters waiting mode
-2. **Coder**: Implementation → auto-notifies QA-Functional upon completion
-3. **QA-Functional**: Testing → auto-reports to QA-Lead (pass/fail)
-4. **QA-Lead**: Final quality judgment → auto-reports to PM
-5. **PM**: Receives final report → project completion/retry cycle
-
-**Key Feature**: PM waits passively while agents collaborate autonomously
-
-### 🚀 Autonomous Workflow Example
-```bash
-# PM sends ONLY initial instruction
-chimera send coder "Implement login feature"
-
-# PM enters waiting mode - no further action needed
-echo "🎯 PM: Agent autonomous collaboration started"
-echo "⏳ PM: Waiting for final report from QA-Lead..."
-
-# Agents work autonomously:
-# 1. Coder completes → auto-notifies QA-Functional
-# 2. QA-Functional tests → auto-reports to QA-Lead
-# 3. QA-Lead judges → auto-reports to PM
-```
-
-### Optional Monitoring Commands
-```bash
-# Check overall system status (optional)
-chimera send status-all
-
-# Check specific agent status (optional) 
-chimera send check-dev
-
-# Manual intervention only for emergencies
-chimera send coder "Emergency instruction..."
-```
-
-## Development Best Practices
-
-### macOS Compatibility
-The system is designed for cross-platform compatibility with special attention to macOS limitations:
-
-**Bash Compatibility:**
-- Uses function-based configuration instead of associative arrays (bash 3.x compatibility)
-- Avoids `timeout` command (not available on macOS by default)
-- Uses `declare` without `-g` flag for broader bash version support
-
-**Error Handling:**
-- Graceful degradation when advanced bash features are unavailable
-- Alternative implementations for macOS-specific limitations
-- Comprehensive testing on both Linux and macOS environments
-
-## Quick Start Demo
-
-```bash
-# Complete setup and demo in 3 commands
-curl -sSL https://raw.githubusercontent.com/yuki-ino/ChimeraEngine/main/scripts/install.sh | bash
-chimera init && chimera start
-
-# In PM session, trigger the demo:
-# Type: "あなたはPMです。指示書に従って"
-```
+#### 📋 macOS Compatibility Checklist:
+Before committing ANY script, verify:
+- [ ] No `declare -A` anywhere in the file
+- [ ] No `["key"]="value"` associative array syntax
+- [ ] No `declare -g` global declarations
+- [ ] No `timeout` command usage
+- [ ] Bash version check for advanced features
+- [ ] Test on bash 3.x (or add compatibility check)
 
 ## Development Guidelines
 
-### Code Architecture Principles
-1. **Modular Design**: All functionality is split into focused libraries in `scripts/lib/`
-2. **Error Resilience**: Comprehensive error handling with recovery mechanisms  
-3. **Cross-Platform**: Designed for macOS/Linux compatibility with bash 3.x+ support
-4. **Testing**: Custom test framework with full coverage of core functionality
-5. **Configuration-Driven**: Function-based configuration system for maximum compatibility
-
-### When Modifying the System
-- **Always run tests**: `./tests/run_all_tests.sh -v` before committing changes
-- **Update agent mappings**: Modify `get_agent_pane()` in `config.sh` for new agents
-- **Add error handling**: Use `init_error_handling()` for new critical scripts
-- **Maintain compatibility**: Test on both macOS and Linux environments
-- **Follow patterns**: Use existing logging functions (`log_info`, `log_error`, etc.)
-
-### File Dependencies
-```
-setup-chimera.sh → session-manager.sh → common.sh → config.sh
-chimera-send.sh → messaging.sh → common.sh → config.sh  
-All scripts → error-handler.sh (optional)
+### 1. Error Handling Strategy
+```bash
+# Initialize error handling in all scripts
+source "$SCRIPT_DIR/lib/error-handler.sh"
+init_error_handling 0 0  # (strict=0 for tmux compatibility, debug=0)
 ```
 
-## Repository Information
+### 2. Logging Standards
+Use standardized logging functions from `common.sh`:
+```bash
+log_info "Informational message"
+log_warn "Warning message"  
+log_error "Error message"
+log_success "Success message"
+log_debug "Debug message" # Only shown when DEBUG=1
+```
 
-- **GitHub**: https://github.com/yuki-ino/ChimeraEngine
-- **License**: MIT
-- **Version**: 0.0.1
+### 3. Session Management
+**Never assume sessions exist** - always validate:
+```bash
+if ! session_exists "$session_name"; then
+    log_error "Session '$session_name' not found"
+    return 1
+fi
+```
 
-When working with this system, always follow the established agent communication patterns and respect the role boundaries defined in the instruction files.
+### 4. File Operations
+**Use safe operations** from `common.sh`:
+```bash
+safe_mkdir "$directory"           # Creates with error handling
+escape_string "$user_input"       # Escapes shell special characters
+```
+
+## Testing Strategy
+
+### 1. Custom Test Framework
+**Location**: `tests/lib/test-framework.sh`
+**Features**: macOS-compatible bash testing with color output, progress indicators
+**Execution**: `./tests/run_all_tests.sh -v` (verbose mode)
+
+### 2. Test Coverage Requirements
+- **Unit tests**: All library functions in `scripts/lib/`
+- **Integration tests**: End-to-end workflow scenarios
+- **Compatibility tests**: macOS and Linux validation
+
+### 3. Test Data Management
+**Principle**: Use isolated test environments
+**Implementation**: Temporary directories with automatic cleanup
+```bash
+TEST_WORKSPACE_DIR="${TMPDIR:-/tmp}/chimera-test-$$"
+# Auto-cleanup in test teardown
+```
+
+## Code Quality Standards
+
+### 1. Shell Scripting Standards
+- **Strict mode**: `set -euo pipefail` (disabled in tmux integration scripts)
+- **Quoting**: Always quote variables: `"$variable"`
+- **Error checking**: Check return codes for all critical operations
+
+### 2. Documentation Requirements
+- **Function documentation**: Purpose, parameters, return values
+- **Complex logic**: Inline comments explaining rationale
+- **Architecture decisions**: Document in this CLAUDE.md file
+
+### 3. Naming Conventions
+- **Functions**: `snake_case` (e.g., `create_chimera_session`)
+- **Variables**: `UPPER_CASE` for constants, `snake_case` for locals
+- **Files**: `kebab-case.sh` for scripts
+
+## Troubleshooting Guide
+
+### 1. tmux Session Issues
+**Symptom**: "Session not found" errors
+**Cause**: tmux server disconnected or session killed
+**Solution**: Run `./scripts/setup-chimera.sh --repair`
+
+### 2. Agent Communication Failures
+**Symptom**: Messages not reaching target agents
+**Cause**: Pane indices changed or session corrupted
+**Debug**: Check with `tmux list-sessions` and `tmux list-panes`
+
+### 3. macOS Compatibility Issues
+**Symptom**: "command not found" for GNU tools
+**Cause**: macOS uses BSD variants of common tools
+**Solution**: Use portable implementations in `common.sh`
+
+## Development Workflow
+
+### 1. Adding New Features
+1. **Update this CLAUDE.md** with architectural decisions
+2. **Write tests first** (TDD approach)
+3. **🚨 CRITICAL: Verify macOS bash 3.x compatibility** (see checklist above)
+4. **Implement in modular fashion** (use existing libraries)
+5. **Test on both macOS and Linux**
+6. **Update agent instructions** if behavior changes
+
+**MANDATORY**: Every new script/function MUST pass macOS compatibility checklist
+
+### 2. Modifying Agent Behavior
+1. **Update instruction files** in `instructions/`
+2. **Test role compliance** (especially PM constraints)
+3. **Verify auto-communication flows**
+4. **Update CHIMERA_PLAN.md integration**
+
+### 3. Debugging Agent Issues
+1. **Check agent instruction files** for role violations
+2. **Verify tmux session structure** with debug commands
+3. **Review CHIMERA_PLAN.md** for task state consistency
+4. **Use health monitoring** commands for diagnosis
+
+## Version History
+
+- **v0.0.1**: Initial unified 5-agent architecture
+- **Legacy**: 3-session system (removed for complexity)
+
+## Repository Structure
+```
+├── instructions/           # Agent role definitions
+├── scripts/               # Core implementation
+│   ├── lib/              # Modular libraries
+│   ├── setup-chimera.sh  # Main setup script
+│   └── chimera-send.sh   # Communication system
+├── tests/                # Test framework and suites
+├── USER_GUIDE.md         # User documentation (separate from dev guide)
+└── CLAUDE.md            # This developer guide
+```
+
+## Important Notes for Claude Code
+
+1. **Always read agent instructions** before modifying behavior
+2. **Respect role boundaries** especially PM implementation restrictions
+3. **🚨 CRITICAL: Ensure macOS bash 3.x compatibility** (see requirements above)
+4. **Test thoroughly on macOS** due to bash compatibility issues
+5. **Update documentation** when making architectural changes
+6. **Use existing library functions** rather than reimplementing
+
+## ⚠️ CRITICAL COMPATIBILITY WARNING
+
+**NEVER IGNORE macOS COMPATIBILITY**: 
+- macOS ships with bash 3.x by default
+- Using bash 4.x+ features will cause system failure
+- Always use the compatibility checklist before implementing
+- When in doubt, add bash version checks and graceful degradation
+
+**Failure to follow macOS compatibility will break the entire system for macOS users**
+
+When in doubt, prioritize **macOS compatibility** and **system stability** over feature complexity.

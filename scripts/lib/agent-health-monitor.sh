@@ -8,12 +8,15 @@ source "${HEALTH_MONITOR_DIR}/common.sh"
 source "${HEALTH_MONITOR_DIR}/plan-manager.sh"
 source "${HEALTH_MONITOR_DIR}/structured-messaging.sh"
 
-# ヘルスメトリクス
-declare -A AGENT_LAST_ACTIVITY
-declare -A AGENT_RESPONSE_TIME
-declare -A AGENT_ERROR_COUNT
-declare -A AGENT_CONTEXT_SYNC
-declare -A AGENT_PERFORMANCE_SCORE
+# ヘルスメトリクス（macOS bash 3.x compatibility - disabled associative arrays）
+# declare -A AGENT_LAST_ACTIVITY     # Disabled for macOS compatibility
+# declare -A AGENT_RESPONSE_TIME     # Disabled for macOS compatibility
+# declare -A AGENT_ERROR_COUNT       # Disabled for macOS compatibility
+# declare -A AGENT_CONTEXT_SYNC      # Disabled for macOS compatibility
+# declare -A AGENT_PERFORMANCE_SCORE # Disabled for macOS compatibility
+
+# Note: Agent health monitoring requires bash 4.x+ for associative arrays
+# This feature is disabled on macOS bash 3.x systems
 
 # しきい値設定
 readonly MAX_RESPONSE_TIME=30          # 最大応答時間（秒）
@@ -25,6 +28,13 @@ readonly HEALTH_CHECK_INTERVAL=60     # ヘルスチェック間隔（秒）
 # ヘルスモニター初期化
 init_health_monitor() {
     log_info "🏥 エージェント健康監視システム初期化中..."
+    
+    # Check bash version compatibility
+    if [[ "${BASH_VERSION%%.*}" -lt 4 ]]; then
+        log_warn "エージェント健康監視機能は bash 4.x+ が必要です (現在: bash ${BASH_VERSION})"
+        log_warn "macOS bash 3.x では健康監視は無効化されます"
+        return 0
+    fi
     
     local health_dir="${CHIMERA_WORKSPACE_DIR}/health_monitor"
     safe_mkdir "$health_dir"
@@ -38,16 +48,18 @@ init_health_monitor() {
     local current_time=$(date +%s)
     
     for agent in "${agents[@]}"; do
-        AGENT_LAST_ACTIVITY["$agent"]=$current_time
-        AGENT_RESPONSE_TIME["$agent"]=0
-        AGENT_ERROR_COUNT["$agent"]=0
-        AGENT_CONTEXT_SYNC["$agent"]=$current_time
-        AGENT_PERFORMANCE_SCORE["$agent"]=100
+        # AGENT_LAST_ACTIVITY["$agent"]=$current_time      # Disabled for macOS compatibility
+        # AGENT_RESPONSE_TIME["$agent"]=0                  # Disabled for macOS compatibility
+        # AGENT_ERROR_COUNT["$agent"]=0                    # Disabled for macOS compatibility
+        # AGENT_CONTEXT_SYNC["$agent"]=$current_time       # Disabled for macOS compatibility
+        # AGENT_PERFORMANCE_SCORE["$agent"]=100            # Disabled for macOS compatibility
         
-        # メトリクスファイル初期化
-        echo "$current_time" > "${health_dir}/metrics/${agent}_last_activity.txt"
-        echo "0" > "${health_dir}/metrics/${agent}_errors.txt"
-        echo "100" > "${health_dir}/metrics/${agent}_performance.txt"
+        # Create file-based state tracking for bash 3.x compatibility
+        echo "$current_time" > "$health_dir/metrics/${agent}_last_activity.txt"
+        echo "0" > "$health_dir/metrics/${agent}_response_time.txt"
+        echo "0" > "$health_dir/metrics/${agent}_error_count.txt"
+        echo "$current_time" > "$health_dir/metrics/${agent}_context_sync.txt"
+        echo "100" > "$health_dir/metrics/${agent}_performance_score.txt"
     done
     
     # ヘルスチェックデーモン設定ファイル作成

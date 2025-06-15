@@ -89,34 +89,65 @@ create_directories() {
     log_success "Installation directories created"
 }
 
-# Copy files
+# Copy files with version tracking
 install_files() {
     log_info "Installing Chimera Engine files..."
     
+    # Remove old installation for clean update
+    if [ -d "$INSTALL_DIR" ]; then
+        log_info "Removing existing installation for clean update..."
+        rm -rf "$INSTALL_DIR"
+    fi
+    
+    # Recreate directories
+    create_directories
+    
     # Copy main scripts
     cp -r "$SOURCE_DIR/scripts/"* "$INSTALL_DIR/scripts/"
+    log_info "✓ Scripts copied"
     
-    # Copy instructions
+    # Copy instructions (critical files)
     cp -r "$SOURCE_DIR/instructions/"* "$INSTALL_DIR/instructions/"
+    log_info "✓ Instructions copied"
     
     # Copy templates
-    cp -r "$SOURCE_DIR/templates/"* "$INSTALL_DIR/templates/"
+    if [ -d "$SOURCE_DIR/templates" ]; then
+        cp -r "$SOURCE_DIR/templates/"* "$INSTALL_DIR/templates/" 2>/dev/null || true
+    fi
     
     # Copy documentation
-    cp -r "$SOURCE_DIR/docs/"* "$INSTALL_DIR/docs/"
+    if [ -d "$SOURCE_DIR/docs" ]; then
+        cp -r "$SOURCE_DIR/docs/"* "$INSTALL_DIR/docs/" 2>/dev/null || true
+    fi
     
     # Copy tests
-    cp -r "$SOURCE_DIR/tests/"* "$INSTALL_DIR/tests/"
+    if [ -d "$SOURCE_DIR/tests" ]; then
+        cp -r "$SOURCE_DIR/tests/"* "$INSTALL_DIR/tests/" 2>/dev/null || true
+    fi
     
     # Copy configuration files
     cp "$SOURCE_DIR/CLAUDE.md" "$INSTALL_DIR/"
+    cp "$SOURCE_DIR/USER_GUIDE.md" "$INSTALL_DIR/" 2>/dev/null || true
     cp "$SOURCE_DIR/VERSION" "$INSTALL_DIR/"
     
+    # Create installation manifest with timestamps
+    cat > "$INSTALL_DIR/.install_manifest" << EOF
+# Chimera Engine Installation Manifest
+INSTALL_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+SOURCE_DIR=$SOURCE_DIR
+INSTALLED_VERSION=$(cat "$SOURCE_DIR/VERSION" 2>/dev/null || echo "unknown")
+
+# Critical Files Checksums (for integrity verification)
+PM_IMPROVED_MD5=$(md5 -q "$INSTALL_DIR/instructions/pm-improved.md" 2>/dev/null || echo "missing")
+CODER_MD5=$(md5 -q "$INSTALL_DIR/instructions/coder.md" 2>/dev/null || echo "missing")
+CLAUDE_MD5=$(md5 -q "$INSTALL_DIR/CLAUDE.md" 2>/dev/null || echo "missing")
+EOF
+    
     # Make scripts executable
-    chmod +x "$INSTALL_DIR/scripts/"*.sh
-    chmod +x "$INSTALL_DIR/scripts/lib/"*.sh
+    find "$INSTALL_DIR/scripts" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
     
     log_success "Files installed to $INSTALL_DIR"
+    log_info "Installation manifest created: $INSTALL_DIR/.install_manifest"
 }
 
 # Create chimera command
@@ -305,6 +336,35 @@ run_verification() {
         rm -f CHIMERA_PLAN.md 2>/dev/null || true
     else
         log_warn "Basic initialization test failed"
+    fi
+    
+    # Verify critical files integrity
+    log_info "Verifying critical files integrity..."
+    
+    local critical_files=(
+        "instructions/pm-improved.md"
+        "instructions/coder.md" 
+        "CLAUDE.md"
+        "USER_GUIDE.md"
+    )
+    
+    local missing_files=()
+    for file in "${critical_files[@]}"; do
+        if [ ! -f "$INSTALL_DIR/$file" ]; then
+            missing_files+=("$file")
+        fi
+    done
+    
+    if [ ${#missing_files[@]} -eq 0 ]; then
+        log_success "All critical files verified"
+    else
+        log_warn "Missing files detected: ${missing_files[*]}"
+    fi
+    
+    # Show installation manifest if available
+    if [ -f "$INSTALL_DIR/.install_manifest" ]; then
+        log_info "Installation details:"
+        grep -E "(INSTALL_DATE|INSTALLED_VERSION)" "$INSTALL_DIR/.install_manifest" | sed 's/^/  /' || true
     fi
 }
 

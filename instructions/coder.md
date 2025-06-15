@@ -178,15 +178,21 @@ CHIMERA_WORKSPACE_DIR="${TMPDIR:-/tmp}/chimera-workspace-$$"
 mkdir -p "$CHIMERA_WORKSPACE_DIR/status"
 echo "$(date): 実装完了 - $PM_INSTRUCTION" > "$CHIMERA_WORKSPACE_DIR/status/coding_done.txt"
 
-# QA-Functionalに自動通知（エージェント自律連携）
-chimera send qa-functional "実装完了しました。『$PM_INSTRUCTION』のテストをお願いします。実装内容：$IMPLEMENTATION_SUMMARY"
+# 🚀 必須：QA-Functionalに自動通知（エージェント自律連携）
+echo "🔄 QAチームへの自動連携を開始します"
+
+chimera send qa-functional "✅ 実装完了しました。『$PM_INSTRUCTION』のテストをお願いします。実装内容：$IMPLEMENTATION_SUMMARY"
 
 # Monitorにも完了通知
 chimera send monitor "Coder: 実装作業が完了しました (規模: $WORK_SCALE)。QA-Functionalにテスト指示を送信済みです。"
 
+# PMにも完了報告
+chimera send pm "🎉 Coder: 実装完了しました。『$PM_INSTRUCTION』- 実装内容：$IMPLEMENTATION_SUMMARY。QA-Functionalにテスト指示を送信済みです。"
+
 echo "✅ 実装完了通知を送信しました"
 echo "対象: $PM_INSTRUCTION"
 echo "規模: $WORK_SCALE"
+echo "📋 通知先: QA-Functional, Monitor, PM"
 echo "次のフェーズ: QA-Functional によるテスト実行"
 ```
 

@@ -35,7 +35,7 @@ init_agent_identity() {
 # エージェント身元ファイル作成
 create_agent_identity_file() {
     local agent="$1"
-    local identity="${AGENT_IDENTITY_INFO[$agent]}"
+    local identity=$(get_agent_info "$agent" "role")
     local identity_file="${CHIMERA_WORKSPACE_DIR}/agent_identity/roles/${agent}_identity.md"
     
     # エージェント詳細情報
@@ -114,7 +114,7 @@ generate_role_recognition_message() {
     local agent="$1"
     local session_context="${2:-normal}"  # normal, startup, recovery
     
-    local identity="${AGENT_IDENTITY_INFO[$agent]}"
+    local identity=$(get_agent_info "$agent" "role")
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     # CHIMERA_PLAN.mdの存在確認
@@ -296,7 +296,7 @@ EOF
     local all_recognized=true
     
     for agent in "${agents[@]}"; do
-        local identity="${AGENT_IDENTITY_INFO[$agent]}"
+        local identity=$(get_agent_info "$agent" "role")
         local log_file="${CHIMERA_WORKSPACE_DIR}/agent_identity/session_state/${agent}_recognition.log"
         local status="❌ 未確認"
         local last_recognition="なし"
