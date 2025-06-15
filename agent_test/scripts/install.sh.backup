@@ -1,0 +1,232 @@
+#!/bin/bash
+
+# 🦁 Chimera Engine - ワンコマンドインストーラー
+# Usage: curl -sSL https://raw.githubusercontent.com/yuki-ino/ChimeraEngine/main/install.sh | bash
+
+set -e
+
+# 設定
+INSTALL_DIR="${CHIMERA_DIR:-$HOME/.chimera}"
+REPO_URL="https://github.com/yuki-ino/ChimeraEngine.git"
+BRANCH="main"
+
+# 色付き出力
+print_color() {
+    local color=$1
+    shift
+    echo -e "\033[${color}m$@\033[0m"
+}
+
+info() { print_color "1;32" "[INFO] $@"; }
+warn() { print_color "1;33" "[WARN] $@"; }
+error() { print_color "1;31" "[ERROR] $@"; }
+success() { print_color "1;34" "[SUCCESS] $@"; }
+
+# ヘッダー
+cat << "EOF"
+╔═══════════════════════════════════════╗
+║          Chimera Engine               ║
+║       Quick Installer v0.0.1          ║
+╚═══════════════════════════════════════╝
+EOF
+
+# 依存関係チェック
+info "依存関係をチェック中..."
+
+check_command() {
+    if ! command -v $1 &> /dev/null; then
+        error "$1 が見つかりません。インストールしてください。"
+        return 1
+    fi
+    success "✓ $1"
+}
+
+check_command git || exit 1
+check_command tmux || exit 1
+check_command curl || check_command wget || exit 1
+
+# インストールディレクトリ作成
+info "インストールディレクトリを作成: $INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
+
+# ファイルダウンロード（GitHubから直接、またはローカルコピー）
+if [ -d "$(pwd)/instructions" ] && [ -f "$(pwd)/setup-chimera.sh" ]; then
+    info "ローカルファイルからインストール..."
+    cp -r setup-chimera.sh chimera-send.sh pm-workflow-controller.sh instructions "$INSTALL_DIR/"
+else
+    info "GitHubからダウンロード..."
+    cd "$INSTALL_DIR"
+    
+    # 必要なファイルのみダウンロード
+    files=(
+        "setup-chimera.sh"
+        "chimera-send.sh"
+        "pm-workflow-controller.sh"
+        "project-analyzer.sh"
+        "test-manual-generator.sh"
+        "instructions/pm.md"
+        "instructions/coder.md"
+        "instructions/qa-functional.md"
+        "instructions/qa-lead.md"
+    )
+    
+    for file in "${files[@]}"; do
+        dir=$(dirname "$file")
+        mkdir -p "$dir"
+        curl -sSL "https://raw.githubusercontent.com/yuki-ino/ChimeraEngine/$BRANCH/$file" -o "$file" || \
+        wget -q "https://raw.githubusercontent.com/yuki-ino/ChimeraEngine/$BRANCH/$file" -O "$file"
+    done
+fi
+
+# 実行権限付与
+chmod +x "$INSTALL_DIR/setup-chimera.sh" "$INSTALL_DIR/chimera-send.sh" "$INSTALL_DIR/pm-workflow-controller.sh"
+
+# グローバルコマンド作成
+info "グローバルコマンドを作成中..."
+
+# chimeraコマンドの作成
+cat > "$INSTALL_DIR/chimera" << 'SCRIPT'
+#!/bin/bash
+# Chimera Engine System - メインコマンド
+
+CHIMERA_HOME="${CHIMERA_DIR:-$HOME/.chimera}"
+COMMAND=$1
+shift
+
+case "$COMMAND" in
+    init)
+        # プロジェクトにChimera Engineを初期化
+        cp -r "$CHIMERA_HOME/"{setup-chimera.sh,chimera-send.sh,pm-workflow-controller.sh,instructions} .
+        
+        # プロジェクト解析ツールもコピー
+        if [ -f "$CHIMERA_HOME/project-analyzer.sh" ]; then
+            cp "$CHIMERA_HOME/project-analyzer.sh" .
+        fi
+        if [ -f "$CHIMERA_HOME/test-manual-generator.sh" ]; then
+            cp "$CHIMERA_HOME/test-manual-generator.sh" .
+        fi
+        if [ -f "$CHIMERA_HOME/pm-workflow-controller.sh" ]; then
+            cp "$CHIMERA_HOME/pm-workflow-controller.sh" .
+        fi
+        
+        chmod +x *.sh
+        
+        # 自動プロジェクト解析とテストマニュアル生成
+        if command -v jq &> /dev/null; then
+            echo "🔍 プロジェクトを解析中..."
+            ./project-analyzer.sh .
+            echo "📖 カスタムテストマニュアルを生成中..."
+            ./test-manual-generator.sh .
+            echo "✅ プロジェクト固有のテスト環境を設定しました"
+        else
+            echo "⚠️  jqが見つかりません。標準のテスト指示書を使用します"
+            echo "   詳細解析には 'brew install jq' または 'apt install jq' でjqをインストールしてください"
+        fi
+        
+        echo "✅ Chimera Engineシステムを現在のディレクトリに初期化しました"
+        echo "実行: chimera start"
+        ;;
+    
+    start)
+        # セットアップと起動
+        if [ ! -f "./setup-chimera.sh" ]; then
+            "$0" init
+        fi
+        ./setup-chimera.sh
+        ;;
+    
+    send)
+        # メッセージ送信
+        if [ ! -f "./chimera-send.sh" ]; then
+            echo "エラー: chimera-send.sh が見つかりません。'chimera init' を実行してください。"
+            exit 1
+        fi
+        ./chimera-send.sh "$@"
+        ;;
+    
+    update)
+        # システムアップデート
+        echo "Chimera Engineシステムをアップデート中..."
+        cd "$CHIMERA_HOME"
+        curl -sSL https://raw.githubusercontent.com/yuki-ino/ChimeraEngine/main/install.sh | bash
+        ;;
+    
+    help|--help|-h|"")
+        cat << EOF
+Chimera Engine - Multi-Agent Development System
+
+使用方法:
+  chimera <command> [options]
+
+コマンド:
+  init      現在のプロジェクトにChimera Engineを初期化
+  start     マルチエージェント環境を起動
+  send      エージェントにメッセージを送信
+  update    システムをアップデート
+  help      このヘルプを表示
+
+例:
+  chimera init                    # プロジェクトに初期化
+  chimera start                   # 環境起動
+  chimera send coder "実装開始"   # メッセージ送信
+
+詳細:
+  https://github.com/yuki-ino/ChimeraEngine
+EOF
+        ;;
+    
+    *)
+        echo "不明なコマンド: $COMMAND"
+        echo "使用方法: chimera help"
+        exit 1
+        ;;
+esac
+SCRIPT
+
+chmod +x "$INSTALL_DIR/chimera"
+
+# PATH設定の提案
+info "PATH設定を確認中..."
+
+add_to_path() {
+    local shell_rc=""
+    
+    if [ -n "$BASH_VERSION" ]; then
+        shell_rc="$HOME/.bashrc"
+    elif [ -n "$ZSH_VERSION" ]; then
+        shell_rc="$HOME/.zshrc"
+    fi
+    
+    if [ -n "$shell_rc" ] && [ -f "$shell_rc" ]; then
+        if ! grep -q "CHIMERA_DIR" "$shell_rc"; then
+            cat >> "$shell_rc" << EOF
+
+# Chimera Engine System
+export CHIMERA_DIR="$INSTALL_DIR"
+export PATH="\$CHIMERA_DIR:\$PATH"
+EOF
+            success "PATH設定を $shell_rc に追加しました"
+            warn "新しいターミナルを開くか、以下を実行してください:"
+            echo "  source $shell_rc"
+        fi
+    fi
+}
+
+add_to_path
+
+# インストール完了
+echo ""
+success "🎉 Chimera Engineシステムのインストールが完了しました！"
+echo ""
+echo "📋 クイックスタート:"
+echo "  1. プロジェクトディレクトリに移動"
+echo "  2. chimera init    # 初期化"
+echo "  3. chimera start   # 起動"
+echo ""
+echo "💡 今すぐ使うには:"
+echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+echo "  chimera help"
+echo ""
+
+# 一時的にPATHに追加（現在のシェルセッション用）
+export PATH="$INSTALL_DIR:$PATH"

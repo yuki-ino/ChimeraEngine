@@ -1,0 +1,71 @@
+{
+  "name": "chimera-engine",
+  "version": "0.0.1",
+  "description": "Multi-species development engine powered by Claude Code",
+  "main": "install.sh",
+  "bin": {
+    "chimera": "install.sh"
+  },
+  "scripts": {
+    "install": "./install.sh",
+    "setup": "./setup-chimera.sh",
+    "test": "echo \"Manual testing required - see CONTRIBUTING.md\" && exit 0",
+    "demo": "./setup-chimera.sh && echo '🎯 Demo ready! Run: tmux attach-session -t pmproject'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuki-ino/ChimeraEngine.git"
+  },
+  "keywords": [
+    "claude-code",
+    "pm",
+    "development",
+    "qa",
+    "testing",
+    "team-communication",
+    "ai-development",
+    "tmux",
+    "agile",
+    "devops",
+    "project-management",
+    "quality-assurance",
+    "automation",
+    "workflow"
+  ],
+  "author": "Chimera Engine Contributors",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yuki-ino/ChimeraEngine/issues"
+  },
+  "homepage": "https://github.com/yuki-ino/ChimeraEngine#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "dependencies": {},
+  "devDependencies": {},
+  "peerDependencies": {
+    "tmux": ">=3.0.0"
+  },
+  "files": [
+    "install.sh",
+    "setup-chimera.sh",
+    "chimera-send.sh",
+    "pm-workflow-controller.sh",
+    "project-analyzer.sh",
+    "test-manual-generator.sh",
+    "pm-mode-controller.sh",
+    "feedback-collector.sh",
+    "instructions/",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md"
+  ],
+  "preferGlobal": true,
+  "publishConfig": {
+    "access": "public"
+  }
+}

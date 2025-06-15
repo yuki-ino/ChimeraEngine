@@ -1,0 +1,64 @@
+# Chimera Engine - Generated Files
+/.chimera/
+/status/
+/logs/
+/reports/
+/quality/
+/tmp/
+
+
+# OS Generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node.js (for projects using this system)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (for projects using this system)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Rust (for projects using this system)
+target/
+Cargo.lock
+
+# Go (for projects using this system)
+go.sum
+
+# Java (for projects using this system)
+*.class
+target/
+.mvn/
+
+# Testing artifacts
+coverage/
+.nyc_output/
+.coverage
+htmlcov/
+
+# tmux
+.tmux/
+
+# Local configuration
+.chimera-local.json
+
+test_project/
+test_project/*

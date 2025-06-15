@@ -1,0 +1,7 @@
+🧪 Chimera Test Framework 初期化
+Temp Dir: /var/folders/sr/_yjt4y1x5073yxys8hdnbjwr0000gn/T/chimera_test_XXXXXX.9pDLTcakJo
+Verbose: 1, Strict: 0, Timeout: 30
+----------------------------------------
+🧪 Testing Messaging System
+==========================
+/Users/inoyuki/Documents/workspace/Claude-Code-Communication-main/tests/lib/test-framework.sh: line 301: CHIMERA_WORKSPACE_DIR: readonly variable

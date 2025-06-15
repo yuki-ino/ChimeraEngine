@@ -1,0 +1,265 @@
+#!/bin/bash
+
+# 🚀 Chimera Engine - エージェント間メッセージ送信スクリプト
+
+# エージェント→tmuxターゲット マッピング
+get_agent_target() {
+    case "$1" in
+        "pm") echo "chimera-workspace:0.0" ;;
+        "pm-self") echo "chimera-workspace:0.0" ;;  # PM自身への内部メッセージ
+        "coder") echo "chimera-workspace:0.1" ;;
+        "qa-functional") echo "chimera-workspace:0.2" ;;  # 機能テスト担当
+        "qa-lead") echo "chimera-workspace:0.3" ;;       # QA総合判定担当
+        "monitor") echo "chimera-workspace:0.4" ;;
+        *) echo "" ;;
+    esac
+}
+
+show_usage() {
+    cat << EOF
+🦁 Chimera Engine v0.0.1 - エージェント間メッセージ送信
+
+使用方法:
+  chimera send [エージェント名] [メッセージ]
+  chimera send [PM専用コマンド]
+
+エージェント:
+  pm              - プロダクトマネージャー（指示者）
+  coder           - フルスタック開発者（Frontend/Backend/Mobile）  
+  qa-functional   - 機能テスト担当（個別機能の詳細テスト）
+  qa-lead         - QA総合判定担当（品質管理・リリース判定）
+  monitor         - モニター（ステータス監視）
+
+PM専用コマンド:
+  chimera send check-dev           - Dev作業状況確認
+  chimera send status-all          - 全体ステータス確認
+  chimera send wait-qa "タスク名"  - Dev完了後にQA自動指示
+
+基本使用例:
+  chimera send pm "あなたはPMです。指示書に従って"
+  chimera send coder "ログイン機能を実装してください"
+  
+PMワークフロー例:
+  chimera send coder "実装指示"
+  chimera send check-dev              # Dev状況確認
+  chimera send qa-functional "テスト指示"  # 完了確認後
+EOF
+}
+
+# エージェント一覧表示
+show_agents() {
+    echo "📋 利用可能なエージェント:"
+    echo "=========================="
+    echo "  pm              → chimera-workspace:0.0   (プロダクトマネージャー)"
+    echo "  coder           → chimera-workspace:0.1   (フルスタック開発者)"
+    echo "  qa-functional   → chimera-workspace:0.2   (機能テスト担当)"
+    echo "  qa-lead         → chimera-workspace:0.3   (QA総合判定担当)"
+    echo "  monitor         → chimera-workspace:0.4   (ステータス監視)"
+}
+
+# ログ記録（詳細版）
+log_send() {
+    local agent="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Chimera専用作業ディレクトリを使用（プロジェクトフォルダを汚さない）
+    local chimera_workspace_dir="${TMPDIR:-/tmp}/chimera-workspace-$$"
+    mkdir -p "$chimera_workspace_dir/logs"
+    
+    # 通信ログ
+    echo "[$timestamp] $agent: SENT - \"$message\"" >> "$chimera_workspace_dir/logs/communication_log.txt"
+    
+    # 役割別ログ
+    case "$agent" in
+        "pm")
+            echo "[$timestamp] PM指示: \"$message\"" >> "$chimera_workspace_dir/logs/pm_log.txt"
+            ;;
+        "coder")
+            echo "[$timestamp] 開発: \"$message\"" >> "$chimera_workspace_dir/logs/development_log.txt"
+            ;;
+        "qa-functional")
+            echo "[$timestamp] 機能テスト: \"$message\"" >> "$chimera_workspace_dir/logs/qa_functional_log.txt"
+            ;;
+        "qa-lead")
+            echo "[$timestamp] QA総合: \"$message\"" >> "$chimera_workspace_dir/logs/qa_lead_log.txt"
+            ;;
+        "monitor")
+            echo "[$timestamp] 監視: \"$message\"" >> "$chimera_workspace_dir/logs/monitor_log.txt"
+            ;;
+    esac
+}
+
+# メッセージ送信
+send_message() {
+    local target="$1"
+    local message="$2"
+    
+    # PM自身への内部メッセージの場合は特別処理
+    if [[ "$message" == START_DEVELOPMENT* ]]; then
+        echo "🎯 PM内部コマンド: 開発開始指示"
+        handle_start_development "$message"
+        return 0
+    fi
+    
+    echo "📤 送信中: $target ← '$message'"
+    
+    # Claude Codeのプロンプトを一度クリア
+    tmux send-keys -t "$target" C-c
+    sleep 0.3
+    
+    # メッセージ送信
+    tmux send-keys -t "$target" "$message"
+    sleep 0.1
+    
+    # エンター押下
+    tmux send-keys -t "$target" C-m
+    sleep 0.5
+}
+
+# 開発開始コマンドの処理
+handle_start_development() {
+    local message="$1"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Chimera専用作業ディレクトリを使用
+    local chimera_workspace_dir="${TMPDIR:-/tmp}/chimera-workspace-$$"
+    mkdir -p "$chimera_workspace_dir/status" "$chimera_workspace_dir/logs"
+    
+    echo "[$timestamp] 企画確定、開発開始: $message" >> "$chimera_workspace_dir/logs/pm_log.txt"
+    touch "$chimera_workspace_dir/status/planning_complete.txt"
+    
+    echo "🚀 開発フェーズを開始します"
+    echo "企画が確定しました。チームに指示を送信します。"
+    
+    # 実際のチームへの指示送信は別途実行
+    echo ""
+    echo "💡 次のステップ:"
+    echo "  1. chimera send coder \"開発指示\""
+    echo "  2. chimera send qa-functional \"テスト準備指示\""
+}
+
+# ターゲット存在確認
+check_target() {
+    local target="$1"
+    local session_name="${target%%:*}"
+    
+    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+        echo "❌ セッション '$session_name' が見つかりません"
+        echo "💡 ヒント: chimera start を実行してワークスペースを作成してください"
+        return 1
+    fi
+    
+    return 0
+}
+
+# ステータス更新（オプション機能）
+update_status() {
+    local agent="$1"
+    local message="$2"
+    
+    # Chimera専用作業ディレクトリを使用
+    local chimera_workspace_dir="${TMPDIR:-/tmp}/chimera-workspace-$$"
+    mkdir -p "$chimera_workspace_dir/status"
+    
+    # メッセージ内容に基づいてステータスファイルを更新
+    if [[ "$message" == *"実装完了"* ]] && [[ "$agent" == "coder" ]]; then
+        touch "$chimera_workspace_dir/status/coding_done.txt"
+        echo "📝 ステータス更新: 実装完了"
+    elif [[ "$message" == *"テスト合格"* ]] && [[ "$agent" == "qa-functional" ]]; then
+        touch "$chimera_workspace_dir/status/test_passed.txt"
+        echo "✅ ステータス更新: テスト合格"
+    elif [[ "$message" == *"テスト失敗"* ]] && [[ "$agent" == "qa-functional" ]]; then
+        touch "$chimera_workspace_dir/status/test_failed.txt"
+        echo "❌ ステータス更新: テスト失敗"
+    fi
+}
+
+# PM専用コマンドの処理
+handle_pm_command() {
+    local command="$1"
+    local param="$2"
+    
+    case "$command" in
+        "check-dev")
+            echo "🔍 Dev作業状況を確認中..."
+            ./pm-workflow-controller.sh check-dev
+            ;;
+        "status-all")
+            echo "📊 全体ステータスを確認中..."
+            ./pm-workflow-controller.sh status-all
+            ;;
+        "wait-qa")
+            if [[ -z "$param" ]]; then
+                echo "❌ エラー: タスク名が必要です"
+                echo "使用例: chimera send wait-qa \"ログイン機能実装\""
+                exit 1
+            fi
+            echo "⏳ Dev完了を待機してQAに指示..."
+            ./pm-workflow-controller.sh wait-for-qa "$param"
+            ;;
+        *)
+            echo "❌ 不明なPM専用コマンド: $command"
+            echo "利用可能コマンド: check-dev, status-all, wait-qa"
+            exit 1
+            ;;
+    esac
+}
+
+# メイン処理
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_usage
+        exit 1
+    fi
+    
+    # --listオプション
+    if [[ "$1" == "--list" ]]; then
+        show_agents
+        exit 0
+    fi
+    
+    # PM専用コマンドの確認
+    if [[ "$1" == "check-dev" ]] || [[ "$1" == "status-all" ]] || [[ "$1" == "wait-qa" ]]; then
+        handle_pm_command "$1" "$2"
+        exit $?
+    fi
+    
+    if [[ $# -lt 2 ]]; then
+        show_usage
+        exit 1
+    fi
+    
+    local agent_name="$1"
+    local message="$2"
+    
+    # エージェントターゲット取得
+    local target
+    target=$(get_agent_target "$agent_name")
+    
+    if [[ -z "$target" ]]; then
+        echo "❌ エラー: 不明なエージェント '$agent_name'"
+        echo "利用可能エージェント: chimera send --list"
+        exit 1
+    fi
+    
+    # ターゲット確認
+    if ! check_target "$target"; then
+        exit 1
+    fi
+    
+    # メッセージ送信
+    send_message "$target" "$message"
+    
+    # ログ記録
+    log_send "$agent_name" "$message"
+    
+    # ステータス更新
+    update_status "$agent_name" "$message"
+    
+    echo "✅ 送信完了: $agent_name に '$message'"
+    
+    return 0
+}
+
+main "$@"

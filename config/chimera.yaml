@@ -1,0 +1,379 @@
+# 🦁 Chimera Engine - メイン設定ファイル
+# このファイルでChimera Engineの動作をカスタマイズできます
+
+# 基本設定
+chimera:
+  version: "0.0.1"
+  session_name: "chimera-workspace"
+  legacy_session: "multiagent"
+  debug_mode: false
+  strict_mode: true
+
+# ワークスペース設定
+workspace:
+  # 一時ディレクトリベース（環境変数TMPDIRを使用）
+  base_dir: "${TMPDIR:-/tmp}/chimera-workspace-$$"
+  
+  # サブディレクトリ
+  directories:
+    status: "status"
+    logs: "logs"
+    temp: "tmp"
+    backup: "backup"
+  
+  # ディレクトリの権限
+  permissions: "755"
+  
+  # クリーンアップ設定
+  cleanup:
+    auto_cleanup: true
+    max_log_files: 100
+    max_log_age_days: 7
+    temp_file_patterns:
+      - "*.tmp"
+      - "chimera_*.temp"
+      - "tmux_*.sock"
+
+# エージェント設定
+agents:
+  # 現在のエージェント（新しいアーキテクチャ）
+  current:
+    pm:
+      pane: "chimera-workspace:0.0"
+      title: "PM"
+      color: "1;31m"
+      role: "プロダクトマネージャー"
+      description: "企画・要件定義・プロジェクト管理"
+      startup_script: "pm-improved.md"
+      
+    coder:
+      pane: "chimera-workspace:0.1"
+      title: "Coder"
+      color: "1;36m"
+      role: "フルスタック開発者"
+      description: "Frontend/Backend/Mobile 全対応"
+      startup_script: "coder.md"
+      
+    qa-functional:
+      pane: "chimera-workspace:0.2"
+      title: "QA-Func"
+      color: "1;33m"
+      role: "機能テスト担当"
+      description: "機能テスト・バグ検出"
+      startup_script: "qa-functional.md"
+      
+    qa-lead:
+      pane: "chimera-workspace:0.3"
+      title: "QA-Lead"
+      color: "1;31m"
+      role: "品質管理・リリース判定"
+      description: "品質管理・リリース判定"
+      startup_script: "qa-lead.md"
+      
+    monitor:
+      pane: "chimera-workspace:0.4"
+      title: "Monitor"
+      color: "1;35m"
+      role: "ステータス監視・レポート"
+      description: "ステータス監視・レポート"
+      startup_script: null
+  
+  # レガシーエージェント（旧アーキテクチャとの互換性）
+  legacy:
+    president:
+      pane: "president:0"
+      title: "President"
+      role: "最高指揮官"
+      startup_script: "president.md"
+      
+    boss1:
+      pane: "multiagent:0.0"
+      title: "Boss1"
+      role: "チームリーダー"
+      startup_script: "boss.md"
+      
+    worker1:
+      pane: "multiagent:0.1"
+      title: "Worker1"
+      role: "作業員"
+      startup_script: "worker.md"
+      
+    worker2:
+      pane: "multiagent:0.2"
+      title: "Worker2"
+      role: "作業員"
+      startup_script: "worker.md"
+      
+    worker3:
+      pane: "multiagent:0.3"
+      title: "Worker3"
+      role: "作業員"
+      startup_script: "worker.md"
+
+# tmux設定
+tmux:
+  # セッション設定
+  session:
+    mouse_support: true
+    status_bar: true
+    base_index: 0
+    
+  # ペイン設定
+  panes:
+    # ペイン分割比率（パーセント）
+    layout:
+      pm_height: 33        # 上1/3
+      coder_height: 33     # 中1/3
+      qa_width_1: 33       # 下1/3の左
+      qa_width_2: 50       # 下1/3の中央と右の分割
+    
+    # ペインボーダー
+    border_style: "single"
+    active_border_color: "green"
+    
+  # キーバインド
+  keybindings:
+    prefix: "C-b"
+    mouse_select: true
+    copy_mode: "vi"
+
+# Claude Code設定
+claude:
+  # 起動設定
+  startup:
+    command: "claude --dangerously-skip-permissions"
+    auto_auth: true
+    auth_code: "2"  # Accept
+    startup_wait: 5
+    auth_retry_wait: 3
+    max_retries: 3
+    
+  # 認証設定
+  authentication:
+    auto_accept: true
+    skip_warnings: true
+
+# タイムアウト設定
+timeouts:
+  # デフォルトタイムアウト（秒）
+  default: 30
+  
+  # 特定操作のタイムアウト
+  operations:
+    session_create: 60
+    claude_startup: 120
+    command_execution: 300
+    test_execution: 600
+    
+  # 監視設定
+  monitoring:
+    check_interval: 30
+    max_checks: 10
+    health_check_timeout: 10
+
+# ログ設定
+logging:
+  # ログレベル
+  level: "INFO"  # DEBUG, INFO, WARN, ERROR
+  
+  # ログ形式
+  format:
+    timestamp: true
+    level: true
+    agent: true
+    
+  # ログファイル設定
+  files:
+    communication: "communication.log"
+    errors: "errors/error_{id}.log"
+    pm_workflow: "pm_workflow.log"
+    development: "development.log"
+    qa_functional: "qa_functional.log"
+    qa_lead: "qa_lead.log"
+    monitoring: "monitoring.log"
+    
+  # ログローテーション
+  rotation:
+    max_size_mb: 10
+    max_files: 50
+    compress: true
+
+# ワークフロー設定
+workflow:
+  # PM専用コマンド
+  pm_commands:
+    check_dev: "pm-workflow-controller.sh check-dev"
+    status_all: "pm-workflow-controller.sh status-all"
+    wait_qa: "pm-workflow-controller.sh wait-for-qa"
+    
+  # 自動化設定
+  automation:
+    auto_notify_qa: true
+    auto_status_update: true
+    auto_cleanup: true
+    
+  # ステータスファイルパターン
+  status_files:
+    planning_complete: "planning_complete.txt"
+    coding_done: "coding_done.txt"
+    test_passed: "test_passed.txt"
+    test_failed: "test_failed.txt"
+    release_ready: "release_ready.txt"
+    critical_error: "critical_error.flag"
+
+# プロジェクト解析設定
+project_analysis:
+  # 解析ファイル
+  analysis_file: ".chimera/project-analysis.json"
+  custom_tester_file: "instructions/tester-custom.md"
+  
+  # 検出対象
+  frameworks:
+    javascript:
+      - "jest"
+      - "vitest" 
+      - "cypress"
+      - "playwright"
+      - "mocha"
+      - "chai"
+    python:
+      - "pytest"
+      - "unittest"
+    other:
+      - "cargo test"
+      - "go test"
+      - "mvn test"
+      - "./gradlew test"
+      
+  # 設定ファイルパターン
+  config_patterns:
+    - "*config.js"
+    - "*config.ts"
+    - "*config.json"
+    - "*.ini"
+    - "*.toml"
+    - "*.yaml"
+    - "*.yml"
+
+# エラーハンドリング設定
+error_handling:
+  # エラーレベル
+  strict_mode: true
+  debug_mode: false
+  
+  # エラー通知
+  notifications:
+    critical_errors: true
+    error_emails: false
+    slack_webhook: null
+    
+  # 回復設定
+  recovery:
+    auto_retry: true
+    max_retries: 3
+    retry_delay: 5
+    
+  # エラーファイル設定
+  error_files:
+    max_error_logs: 50
+    error_retention_days: 30
+
+# 外部コマンド設定
+external_commands:
+  required:
+    - "tmux"
+    - "git"
+    - "curl"
+    - "grep"
+    - "awk"
+    - "sed"
+    
+  optional:
+    - "jq"
+    - "yq"
+    - "wget"
+    - "nc"
+    
+  # バージョン要件
+  version_requirements:
+    tmux: ">=3.0"
+    git: ">=2.0"
+
+# セキュリティ設定
+security:
+  # ファイル権限
+  file_permissions:
+    scripts: "755"
+    configs: "644"
+    logs: "640"
+    temp: "600"
+    
+  # ディレクトリ権限
+  directory_permissions:
+    workspace: "755"
+    logs: "750"
+    temp: "700"
+    
+  # 機密情報設定
+  sensitive_patterns:
+    - "password"
+    - "secret"
+    - "token"
+    - "key"
+    - "credential"
+
+# 開発設定
+development:
+  # テスト設定
+  testing:
+    framework: "bash_test"
+    parallel: false
+    verbose: false
+    timeout: 300
+    
+  # デバッグ設定
+  debug:
+    trace_commands: false
+    log_function_calls: false
+    performance_monitoring: false
+    
+  # プロファイリング
+  profiling:
+    enabled: false
+    output_file: "profile.log"
+
+# インストール設定
+installation:
+  # ディレクトリ
+  install_dir: "${CHIMERA_DIR:-$HOME/.chimera}"
+  
+  # リポジトリ設定
+  repository:
+    url: "https://github.com/yuki-ino/ChimeraEngine.git"
+    branch: "main"
+    
+  # 依存関係確認
+  dependency_check: true
+  
+  # PATH設定
+  auto_path_setup: true
+  shell_configs:
+    - "$HOME/.bashrc"
+    - "$HOME/.zshrc"
+
+# カスタマイズ設定
+customization:
+  # ユーザー設定ディレクトリ
+  user_config_dir: "$HOME/.chimera/user"
+  
+  # カスタム設定ファイル
+  custom_configs:
+    - "user_agents.yaml"
+    - "user_workflows.yaml"
+    - "user_shortcuts.yaml"
+    
+  # プラグイン設定
+  plugins:
+    enabled: false
+    directory: "plugins"
+    auto_load: true

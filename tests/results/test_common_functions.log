@@ -1,0 +1,13 @@
+🧪 Chimera Test Framework 初期化
+Temp Dir: /var/folders/sr/_yjt4y1x5073yxys8hdnbjwr0000gn/T/chimera_test_XXXXXX.Cy6LmJavaw
+Verbose: 1, Strict: 1, Timeout: 30
+----------------------------------------
+🧪 Testing Common Functions Library
+==================================
+🔍 Testing: get_config
+   Description: 設定値取得機能のテスト
+  ✓ PASS: バージョン設定取得
+  ✓ PASS: セッション名設定取得
+  ✓ PASS: デフォルト値取得
+🔍 Testing: logging_functions
+   Description: ログ関数のテスト
